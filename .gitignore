@@ -1,3 +1,14 @@
 log/
-.hdl_checker/
+.hdl_checker
+*.log
+*.txt
+*.vcd
+*.vpd
+*.fsdb
+simv
+simv.daidir/
 csrc/
+ucli.key
+verdiLog/
+novas.*
+runq_hw
