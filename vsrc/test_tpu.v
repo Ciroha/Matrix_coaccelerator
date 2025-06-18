@@ -77,7 +77,8 @@ tpu_top #(
 	.DATA_WIDTH(DATA_WIDTH),
 	.OUTPUT_DATA_WIDTH(OUT_DATA_WIDTH),
 	.K_ACCUM_DEPTH(K_ACCUM_DEPTH),       //与systolic模块同步的累加深度
-	.DATA_SET(DATA_SET)          //数据集的个数
+	.DATA_SET(DATA_SET),          //数据集的个数
+	.OUTCOME_WIDTH(OUTCOME_WIDTH) //输出结果的宽度
 )
 my_tpu_top(
 	.clk(clk),

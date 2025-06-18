@@ -189,7 +189,11 @@ void matmul_hw(float* xout, QuantizedTensor *x, QuantizedTensor *w, int n, int d
             write_hw_input_tile(x, w, row_base, col_base, n, d, GS);
 
             // 2. 调用硬件仿真器。仿真器应从sim_config.txt读取累加深度。
-            int ret = system("vvp tpu_sim");
+            #ifdef USE_VCS
+                int ret = system("./simv");
+            #else
+                int ret = system("vvp tpu_sim");
+            #endif
             if (ret != 0) {
                 fprintf(stderr, "致命错误：Verilog仿真失败！正在中止。\n");
                 exit(1);

@@ -4,7 +4,8 @@ module tpu_top#(
 	parameter DATA_WIDTH = 8,
 	parameter OUTPUT_DATA_WIDTH = 16,
 	parameter K_ACCUM_DEPTH = 8,   // 用户可配置的累加深度，默认为原始行为 (K=8)
-	parameter DATA_SET = 1          //数据集的个数
+	parameter DATA_SET = 1,          //数据集的个数
+	parameter OUTCOME_WIDTH = 32	 // 输出结果的宽度
 )
 (
 	input clk,
@@ -31,7 +32,7 @@ module tpu_top#(
 );
 localparam ORI_WIDTH = DATA_WIDTH+DATA_WIDTH+5;
 // localparam OUTCOME_WIDTH = DATA_WIDTH + DATA_WIDTH + $clog2(K_ACCUM_DEPTH) + 1;
-localparam OUTCOME_WIDTH = 32;
+// localparam OUTCOME_WIDTH = 32;
 
 //----addr_sel parameter----
 wire [5:0] addr_serial_num;
@@ -87,7 +88,8 @@ systolic #(
 	.ARRAY_SIZE(ARRAY_SIZE),
 	.SRAM_DATA_WIDTH(SRAM_DATA_WIDTH),
 	.DATA_WIDTH(DATA_WIDTH),
-	.K_ACCUM_DEPTH(K_ACCUM_DEPTH)
+	.K_ACCUM_DEPTH(K_ACCUM_DEPTH),
+	.OUTCOME_WIDTH(OUTCOME_WIDTH)
 ) systolic
 (
 	//input

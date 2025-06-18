@@ -1021,7 +1021,7 @@ void generate(Transformer *transformer, Tokenizer *tokenizer, Sampler *sampler, 
         safe_printf(piece); // same as printf("%s", piece), but skips "unsafe" bytes
         safe_fprintf(output_file, piece); // 使用 safe_fprintf 以避免打印不安全的字节
         
-        // exit(1);
+        exit(1);
 
         fflush(stdout);
 

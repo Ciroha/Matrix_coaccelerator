@@ -30,8 +30,8 @@ SRC_FILES = vsrc/test_tpu.v \
             vsrc/sram_64x64b.v
 
 # 3. C 语言源文件和可执行文件名
-C_SRC  = csrc/runq.c \
-		 csrc/tpu_interface.c
+C_SRC  = crun/runq.c \
+		 crun/tpu_interface.c
 C_EXEC = runq_hw
 
 # 4. 仿真顶层模块名
@@ -50,8 +50,7 @@ ifeq ($(SIM),vcs)
     TOOL_NAME      = Synopsys VCS
     COMPILER       = vcs
     COMPILER_FLAGS = -sverilog -full64 -kdb -lca -debug_access+all \
-                     -D VCS_SIM \
-                     -LDFLAGS "-Wl,--no-as-needed"
+                     -LDFLAGS "-no-pie -Wl,--no-as-needed -fno-lto"
     #  -cc gcc-4.8 -cpp g++-4.8 (如果你的环境需要，可以取消这些注释)
     
     SIM_CMD        = ./simv
@@ -63,7 +62,9 @@ ifeq ($(SIM),vcs)
     SIM_OUT        = simv
     WAVEFORM_FILE  = waveform.fsdb
     # 清理列表中包含 C 可执行文件
-    CLEAN_FILES    = simv simv.daidir csrc *.log waveform.fsdb* verdiLog* novas.* ucli.key $(C_EXEC) *.txt
+    # CLEAN_FILES    = simv simv.daidir csrc *.log waveform.fsdb* verdiLog* novas.* ucli.key $(C_EXEC) *.txt
+
+	C_COMPILE_FLAGS = -DUSE_VCS
 
 else
     # --- Icarus Verilog 设置 (默认) ---
@@ -80,13 +81,14 @@ else
     SIM_OUT        = tpu_sim # iverilog 编译输出文件名
     WAVEFORM_FILE  = waveform.vcd
     # 清理列表中包含 C 可执行文件
-    CLEAN_FILES    = $(SIM_OUT) *.log *.vcd $(C_EXEC) *.txt
+    # CLEAN_FILES    = $(SIM_OUT) *.log *.vcd $(C_EXEC) *.txt
 
 endif
 
 # C 编译器和编译选项
 CC = gcc
 CFLAGS = -O2 -Wall -lm # -lm 用于链接数学库 (例如 math.h 中的函数)
+CLEAN_FILES    = simv simv.daidir csrc *.log waveform.fsdb* verdiLog* novas.* ucli.key $(C_EXEC) *.txt $(SIM_OUT) *.log *.vcd $(C_EXEC) *.txt
 
 # --- Makefile 规则 (通用) ---
 
@@ -102,7 +104,7 @@ compile: $(SRC_FILES)
 	@echo "======================================================="
 ifeq ($(SIM),vcs)
 # 对于VCS，将C源文件和Verilog源文件一起编译，并使用 -l 选项
-	$(COMPILER) $(COMPILER_FLAGS) -o $(SIM_OUT) $(SRC_FILES) $(C_SRC) -l compile.log
+	$(COMPILER) $(COMPILER_FLAGS) $(SRC_FILES) -l compile.log
 else
 # 对于Icarus Verilog，只编译Verilog文件，并使用重定向 > ... 2>&1
 	$(COMPILER) $(COMPILER_FLAGS) -o $(SIM_OUT) $(SRC_FILES) > log/compile.log 2>&1
@@ -113,7 +115,7 @@ c_compile: $(C_SRC)
 	@echo "======================================================="
 	@echo "INFO: Compiling C source file with $(CC)..."
 	@echo "======================================================="
-	$(CC) -o $(C_EXEC) $(C_SRC) $(CFLAGS)
+	$(CC) -o $(C_EXEC) $(C_SRC) $(CFLAGS) $(C_COMPILE_FLAGS)
 
 # 仿真运行规则
 run: c_compile compile

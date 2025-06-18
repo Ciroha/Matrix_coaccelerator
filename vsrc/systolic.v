@@ -4,7 +4,8 @@ module systolic#(
     parameter DATA_WIDTH = 8,
     // --- 显式添加累加深度参数 ---
     parameter K_ACCUM_DEPTH = 32,  // 用户可配置的累加深度，默认为原始行为 (K=8)
-    parameter DATA_SET = 1 //数据集的个数
+    parameter DATA_SET = 1, //数据集的个数
+    parameter OUTCOME_WIDTH = 32
 )
 (
     input clk,
@@ -25,7 +26,7 @@ module systolic#(
 );
 
 // localparam OUTCOME_WIDTH = DATA_WIDTH + DATA_WIDTH + $clog2(K_ACCUM_DEPTH) + 1;
-localparam OUTCOME_WIDTH = 32;
+// localparam OUTCOME_WIDTH = 32;
 
 // --- 内部寄存器和线网声明 (使用新的 OUTCOME_WIDTH) ---
 reg signed [DATA_WIDTH-1:0] weight_queue [0:ARRAY_SIZE-1]; // 数据矩阵
