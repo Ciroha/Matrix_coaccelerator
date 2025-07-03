@@ -3,11 +3,10 @@
 module PE_core_tb;
 
     // Parameters for PE_core module
-    parameter ARRAY_SIZE = 16;
-    parameter SRAM_DATA_WIDTH = 512; // 16*32=512
+    parameter ARRAY_SIZE = 32;
     parameter DATA_WIDTH = 32;       // 32位浮点
-    parameter K_ACCUM_DEPTH = 5;    // Reduced for faster simulation
-    parameter DATA_SET = 1;          // Not used in this testbench directly, but kept for PE_core
+    parameter SRAM_DATA_WIDTH = ARRAY_SIZE * DATA_WIDTH; // 16*32=512
+    parameter K_ACCUM_DEPTH = 64;    // Reduced for faster simulation
     parameter OUTCOME_WIDTH = 32;    // 输出32位浮点
 
     // Inputs to PE_core
@@ -32,7 +31,6 @@ module PE_core_tb;
         .SRAM_DATA_WIDTH(SRAM_DATA_WIDTH),
         .DATA_WIDTH(DATA_WIDTH),
         .K_ACCUM_DEPTH(K_ACCUM_DEPTH),
-        .DATA_SET(DATA_SET),
         .OUTCOME_WIDTH(OUTCOME_WIDTH)
     ) u_pe_core (
         .clk(clk),
@@ -88,7 +86,31 @@ module PE_core_tb;
             32'h40800000, // 4.0
             32'h40400000, // 3.0
             32'h40000000, // 2.0
-            32'h3f800000  // 1.0
+            32'h3f800000, // 1.0
+            32'h3f000000, // 0.5
+            32'h3e800000, // 0.25
+            32'h3e000000, // 0.125
+            32'h3d800000, // 0.0625
+            32'h3d000000, // 0.03125
+            32'h3c800000, // 0.015625
+            32'h3c000000, // 0.0078125
+            32'h3b800000, // 0.00390625
+            32'h41000000, // 8.0
+            32'h40e00000, // 7.0
+            32'h40c00000, // 6.0
+            32'h40a00000, // 5.0
+            32'h40800000, // 4.0
+            32'h40400000, // 3.0
+            32'h40000000, // 2.0
+            32'h3f800000, // 1.0
+            32'h3f000000, // 0.5
+            32'h3e800000, // 0.25
+            32'h3e000000, // 0.125
+            32'h3d800000, // 0.0625
+            32'h3d000000, // 0.03125
+            32'h3c800000, // 0.015625
+            32'h3c000000, // 0.0078125
+            32'h3b800000 // 0.00390625
         };
 
         alu_start = 1; // Indicate start of ALU operation (and weight loading)
