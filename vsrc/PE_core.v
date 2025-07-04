@@ -192,6 +192,8 @@ module fp_add(a, b, out);
   assign out[22:0] = o_mantissa[22:0];
 
   always @ (*) begin
+    i_e = 0;
+    i_m = 0;
     // Step 1: Deconstruct inputs into sign, exponent, and mantissa
     a_sign = a[31];
     if(a[30:23] == 0) begin // Denormalized or zero
