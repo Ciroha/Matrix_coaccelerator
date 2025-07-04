@@ -1,3 +1,4 @@
+`timescale 1ns / 1ps
 //****************************************************************************
 // Description:
 // Top-level module with corrected logic for writing results to an SRAM.
@@ -33,11 +34,10 @@ module top #(
     reg [$clog2(SRAM_W_DEPTH)-1:0] sram_w_addr;
     reg [$clog2(SRAM_V_DEPTH)-1:0] sram_v_addr;
 
-    // *** MODIFICATION START ***
-    // Control signals for the outcome SRAM
-    reg outcome_we; // Write enable signal (1 for write, 0 for no-write)
-    reg [$clog2(SRAM_O_DEPTH)-1:0] outcome_waddr; // Write address for the outcome SRAM
-    // *** MODIFICATION END ***
+    // --- Wires for Serializer Connections (now narrow) ---
+    wire sram_we_wire;
+    wire [DATA_WIDTH-1:0] sram_wdata_wire;
+    wire [$clog2(ARRAY_SIZE)-1:0] sram_waddr_wire;
 
 
     //========================================================================
@@ -48,7 +48,8 @@ module top #(
     // Instantiate the weight SRAM (for Matrix A)
     sram #(
         .DATA_WIDTH(SRAM_DATA_WIDTH),
-        .ADDR_WIDTH($clog2(SRAM_W_DEPTH))
+        .ADDR_WIDTH($clog2(SRAM_W_DEPTH)),
+        .INIT_FILE("D://IC//Matrix_coaccelerator//vsrc//weights.mem")
     ) sram_w_inst (
         .clk(clk),
         .csb(1'b0), // Chip select is always active for simplicity
@@ -62,7 +63,8 @@ module top #(
     // Instantiate the vector SRAM (for Vector B)
     sram #(
         .DATA_WIDTH(DATA_WIDTH),
-        .ADDR_WIDTH($clog2(SRAM_V_DEPTH))
+        .ADDR_WIDTH($clog2(SRAM_V_DEPTH)),
+        .INIT_FILE("D://IC//Matrix_coaccelerator//vsrc//vector.mem")
     ) sram_v_inst (
         .clk(clk),
         .csb(1'b0),
@@ -73,18 +75,18 @@ module top #(
         .rdata(sram_rdata_v_wire)
     );
 
-    // Instantiate the outcome SRAM to store the final result
+    // --- Final Outcome SRAM (with standard 32-bit width) ---
     sram #(
-        .DATA_WIDTH(OUTCOME_WIDTH * ARRAY_SIZE),
-        .ADDR_WIDTH($clog2(SRAM_O_DEPTH))
+        .DATA_WIDTH(DATA_WIDTH),
+        .ADDR_WIDTH($clog2(ARRAY_SIZE))
     ) sram_outcome_inst (
-        .clk(clk),
-        .csb(~outcome_we),      // Chip is selected only when writing
-        .wsb(~outcome_we),      // Write is enabled only when outcome_we is high
-        .wdata(final_result_wire),   // Data to write is the final result from PE core
-        .waddr(outcome_waddr),  // Address is controlled by our new logic
-        .raddr(0),              // Read port not used in this design
-        .rdata()                // Read port not connected
+        .clk(clk), 
+        .csb(~sram_we_wire), 
+        .wsb(~sram_we_wire), 
+        .wdata(sram_wdata_wire), 
+        .waddr(sram_waddr_wire), 
+        .raddr(0), 
+        .rdata()
     );
 
     // Instantiate the PE core
@@ -105,48 +107,56 @@ module top #(
         .mul_outcome(final_result_wire)
     );
 
+    // Instantiate the new serializer write_out module
+    write_out #( 
+        .ARRAY_SIZE(ARRAY_SIZE), 
+        .DATA_WIDTH(DATA_WIDTH), 
+        .K_ACCUM_DEPTH(K_ACCUM_DEPTH)
+    ) write_out_inst (
+        .clk(clk),
+        .srstn(srstn),
+        .sram_write_enable(alu_start_reg),
+        .cycle_num(cycle_num_reg),
+        .parallel_data_in(final_result_wire),
+        .sram_we(sram_we_wire),
+        .sram_wdata(sram_wdata_wire),
+        .sram_waddr(sram_waddr_wire)
+    );
+
     //========================================================================
     // CONTROL LOGIC
     //========================================================================
+    localparam ACCUM_DONE_CYCLE = K_ACCUM_DEPTH;
+    localparam WRITE_DONE_CYCLE = K_ACCUM_DEPTH + ARRAY_SIZE;
 
-    // The processing is considered done for one cycle when the accumulation depth is reached.
-    assign processing_done = (cycle_num_reg == K_ACCUM_DEPTH);
+    assign processing_done = (cycle_num_reg == WRITE_DONE_CYCLE);
 
-    // Main control logic for processing cycles and SRAM write operations
     always @(posedge clk or negedge srstn) begin
         if (!srstn) begin
-            // Reset all state registers
             cycle_num_reg <= 0;
             alu_start_reg <= 0;
             sram_w_addr   <= 0;
             sram_v_addr   <= 0;
-            outcome_we    <= 1'b0; // Disable writing on reset
-            outcome_waddr <= 0;
         end else begin
-            // Default: disable writing to outcome SRAM
-            outcome_we <= 1'b0;
-
             if (start_processing && cycle_num_reg == 0) begin
-                // Start a new processing job
-                alu_start_reg <= 1;
+                // Start a new operation
+                alu_start_reg <= 1'b1;
                 cycle_num_reg <= cycle_num_reg + 1;
                 sram_w_addr   <= sram_w_addr + 1;
                 sram_v_addr   <= sram_v_addr + 1;
             end else if (alu_start_reg) begin
-                if (processing_done) begin
-                    // Processing is finished, stop the PE core for the next cycle.
-                    alu_start_reg <= 0;
-                    // Enable writing to the outcome SRAM for this single cycle.
-                    outcome_we <= 1'b1;
-                    // Increment the outcome SRAM address for the next result.
-                    outcome_waddr <= outcome_waddr + 1;
-                    // Reset cycle counter for the next potential operation
+                if (cycle_num_reg == WRITE_DONE_CYCLE) begin
+                    // Entire operation finished
+                    alu_start_reg <= 1'b0;
                     cycle_num_reg <= 0;
-                end else begin
-                    // Continue the accumulation process
+                end else if (cycle_num_reg < ACCUM_DONE_CYCLE) begin
+                    // Accumulation Phase
                     cycle_num_reg <= cycle_num_reg + 1;
                     sram_w_addr   <= sram_w_addr + 1;
                     sram_v_addr   <= sram_v_addr + 1;
+                end else begin
+                    // Write-out Phase (just increment cycle counter)
+                    cycle_num_reg <= cycle_num_reg + 1;
                 end
             end
         end

@@ -1,180 +1,55 @@
-//-----this module is for writing data out------
-
+//****************************************************************************
+// Description:
+// This module serializes a wide parallel data bus into a stream of
+// single-precision floating-point words, writing one word per cycle to an SRAM.
+//****************************************************************************
 module write_out#(
-	parameter ARRAY_SIZE = 8,
-	parameter OUTPUT_DATA_WIDTH = 16,
-	parameter K_ACCUM_DEPTH = 8
+    // Parameters now reflect the final output format
+    parameter ARRAY_SIZE = 32,
+    parameter DATA_WIDTH = 32, // The width of a single output word (single-precision float)
+    parameter K_ACCUM_DEPTH = 64
 )
 (
-	input clk,
-	input srstn,
-	input sram_write_enable,
+    input clk,
+    input srstn,
+    input sram_write_enable, // Master write enable from top module
+    input [8:0] cycle_num,   // Current cycle number from top module
 
-	input [5:0] data_set,
-	// input [5:0] matrix_index,
-	input [8:0] cycle_num,
-
-	input signed [ARRAY_SIZE*OUTPUT_DATA_WIDTH-1:0] quantized_data,
-	
-	output reg sram_write_enable_a0,
-	output reg [ARRAY_SIZE*OUTPUT_DATA_WIDTH-1:0] sram_wdata_a,
- 	output reg [5:0] sram_waddr_a
-
-	// output reg sram_write_enable_b0,
-	// output reg [ARRAY_SIZE*OUTPUT_DATA_WIDTH-1:0] sram_wdata_b,
- 	// output reg [5:0] sram_waddr_b,
-
-	// output reg sram_write_enable_c0,
-	// output reg [ARRAY_SIZE*OUTPUT_DATA_WIDTH-1:0] sram_wdata_c,
- 	// output reg [5:0] sram_waddr_c
+    // Wide parallel data bus from the PE core
+    input [(ARRAY_SIZE*DATA_WIDTH)-1:0] parallel_data_in, 
+    
+    // Outputs for the narrow, final SRAM
+    output reg sram_we,
+    output reg [DATA_WIDTH-1:0] sram_wdata,
+    output reg [$clog2(ARRAY_SIZE)-1:0] sram_waddr
 );
 
-integer i;
+    // Using a single clocked always block for robust, latch-free logic.
+    always @(posedge clk or negedge srstn) begin
+        if (~srstn) begin
+            // Reset all outputs
+            sram_we    <= 1'b0;
+            sram_wdata <= 0;
+            sram_waddr <= 0;
+        end else begin
+            // By default, disable the write operation each cycle.
+            sram_we <= 1'b0;
 
-//output flip-flop
-reg sram_write_enable_a0_nx;
-reg [ARRAY_SIZE*OUTPUT_DATA_WIDTH-1:0] sram_wdata_a_nx;
-reg [5:0] sram_waddr_a_nx;
-
-// reg sram_write_enable_b0_nx;
-// reg [ARRAY_SIZE*OUTPUT_DATA_WIDTH-1:0] sram_wdata_b_nx;
-// reg [5:0] sram_waddr_b_nx;
-
-// reg sram_write_enable_c0_nx;
-// reg [ARRAY_SIZE*OUTPUT_DATA_WIDTH-1:0] sram_wdata_c_nx;
-// reg [5:0] sram_waddr_c_nx;
-
-//---sequential logic-----
-always@(posedge clk) begin
-	if(~srstn) begin
-		sram_write_enable_a0 <= 1;
-		sram_wdata_a <= 0;
-		sram_waddr_a <= 0;
-
-		// sram_write_enable_b0 <= 1;
-		// sram_wdata_b <= 0;
-		// sram_waddr_b <= 0;
-
-		// sram_write_enable_c0 <= 1;
-		// sram_wdata_c <= 0;
-		// sram_waddr_c <= 0;
-	end
-	else begin
-		sram_write_enable_a0 <= sram_write_enable_a0_nx;
-		sram_wdata_a <= sram_wdata_a_nx;
-		sram_waddr_a <= sram_waddr_a_nx;
-
-		// sram_write_enable_b0 <= sram_write_enable_b0_nx;
-		// sram_wdata_b <= sram_wdata_b_nx;
-		// sram_waddr_b <= sram_waddr_b_nx;
-
-		// sram_write_enable_c0 <= sram_write_enable_c0_nx;
-		// sram_wdata_c <= sram_wdata_c_nx;		
-		// sram_waddr_c <= sram_waddr_c_nx;
-	end
-end
-
-//写入a逻辑
-always@(*) begin
-	if(sram_write_enable) begin
-		case(data_set)
-			0: begin
-				if(cycle_num > K_ACCUM_DEPTH && cycle_num <= K_ACCUM_DEPTH + ARRAY_SIZE) begin
-					sram_write_enable_a0_nx = 0;
-					sram_wdata_a_nx = quantized_data;
-					sram_waddr_a_nx = cycle_num - K_ACCUM_DEPTH -1;
-				end
-				else begin
-					sram_write_enable_a0_nx = 1;
-					for(i=0; i<ARRAY_SIZE*OUTPUT_DATA_WIDTH; i=i+1) 
-						sram_wdata_a_nx[i] = 0;
-					sram_waddr_a_nx = 0;
-				end
-			end
-		
-			default: begin
-				sram_write_enable_a0_nx = 1;
-				for(i=0; i<ARRAY_SIZE*OUTPUT_DATA_WIDTH; i=i+1) 
-					sram_wdata_a_nx[i] = 0;
-				sram_waddr_a_nx = 0;
-			end
-		endcase
-	end
-	else begin
-		sram_write_enable_a0_nx = 1;
-		for(i=0; i<ARRAY_SIZE*OUTPUT_DATA_WIDTH; i=i+1) 
-			sram_wdata_a_nx[i] = 0;
-		sram_waddr_a_nx = 0;
-	end
-end
-
-// //写入b逻辑
-// always@(*) begin
-// 	if(sram_write_enable) begin
-// 		case(data_set)
-// 			1: begin
-// 				if(cycle_num < ARRAY_SIZE) begin	//TODO To be fixed
-// 					sram_write_enable_b0_nx = 0;
-// 					sram_wdata_b_nx = quantized_data;
-// 					sram_waddr_b_nx = cycle_num;
-// 				end
-// 				else begin														//mix type
-// 					sram_write_enable_b0_nx = 1;
-// 					for(i=0; i<ARRAY_SIZE*OUTPUT_DATA_WIDTH; i=i+1) 
-// 						sram_wdata_b_nx[i] = 0;
-// 					sram_waddr_b_nx = 0;
-// 				end
-// 			end
-
-// 			default: begin
-// 				sram_write_enable_b0_nx = 1;
-// 				for(i=0; i<ARRAY_SIZE*OUTPUT_DATA_WIDTH; i=i+1) 
-// 					sram_wdata_b_nx[i] = 0;
-// 				sram_waddr_b_nx = 0;
-// 			end
-// 		endcase
-// 	end
-// 	else begin
-// 		sram_write_enable_b0_nx = 1;
-// 		for(i=0; i<ARRAY_SIZE*OUTPUT_DATA_WIDTH; i=i+1) 
-// 			sram_wdata_b_nx[i] = 0;
-// 		sram_waddr_b_nx = 0;
-// 	end
-// end
-
-// //写入c逻辑
-// always@(*) begin
-// 	if(sram_write_enable) begin
-// 		case(data_set)
-// 			2: begin
-// 				if(cycle_num < ARRAY_SIZE) begin
-// 					sram_write_enable_c0_nx = 0;
-// 					sram_wdata_c_nx = quantized_data;
-// 					sram_waddr_c_nx = cycle_num;
-// 				end
-// 				else begin
-// 					sram_write_enable_c0_nx = 1;
-// 					for(i=0; i<ARRAY_SIZE*OUTPUT_DATA_WIDTH; i=i+1) 
-// 						sram_wdata_c_nx[i] = 0;
-// 					sram_waddr_c_nx = 0;
-// 				end
-// 			end
-
-// 			default: begin
-// 				sram_write_enable_c0_nx = 1;
-// 				for(i=0; i<ARRAY_SIZE*OUTPUT_DATA_WIDTH; i=i+1) 
-// 					sram_wdata_c_nx[i] = 0;
-// 				sram_waddr_c_nx = 0;
-// 			end
-// 		endcase
-// 	end
-// 	else begin
-// 		sram_write_enable_c0_nx = 1;
-// 		for(i=0; i<ARRAY_SIZE*OUTPUT_DATA_WIDTH; i=i+1) 
-// 			sram_wdata_c_nx[i] = 0;
-// 		sram_waddr_c_nx = 0;
-// 	end
-// end
+            // Activate only during the designated write-out phase.
+            if (sram_write_enable && (cycle_num > K_ACCUM_DEPTH) && (cycle_num <= K_ACCUM_DEPTH + ARRAY_SIZE)) begin
+                
+                // 1. Assert the write enable signal.
+                sram_we <= 1'b1;
+                
+                // 2. Calculate the address for the output SRAM (from 0 to ARRAY_SIZE-1).
+                // This address corresponds to the element index in the array.
+                sram_waddr <= cycle_num - K_ACCUM_DEPTH - 1;
+                
+                // 3. Select (slice) the correct data word from the parallel input bus.
+                // The address calculated above is used as the index to select the word.
+                sram_wdata <= parallel_data_in[(cycle_num - K_ACCUM_DEPTH - 1) * DATA_WIDTH +: DATA_WIDTH];
+            end
+        end
+    end
 
 endmodule
-
