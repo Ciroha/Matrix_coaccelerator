@@ -30,15 +30,18 @@ SRC_FILES = vsrc/test_tpu.v \
             vsrc/sram_64x64b.v
 
 # 3. C 语言源文件和可执行文件名
-C_SRC  = crun/runq.c \
+C_SRC_Q  = crun/runq.c \
 		 crun/tpu_interface.c
-C_EXEC = runq_hw
+C_SRC	= crun/run.c
+C_EXEC_Q = ./runq_hw
+C_EXEC = ./run_hw
 
 # 4. 仿真顶层模块名
 TOP_MODULE = test_tpu
 
 # 5. 模型名称 (C 代码中使用)
 MODEL_FILES = data/stories260K_q80.bin
+MODEL_Q_FILES = data/stories260K.bin
 TOKENIZER_FILES = data/tok512.bin
 STEP = 20
 TOKEN = "Once upon a time"
@@ -117,12 +120,24 @@ c_compile: $(C_SRC)
 	@echo "======================================================="
 	$(CC) -o $(C_EXEC) $(C_SRC) $(CFLAGS) $(C_COMPILE_FLAGS)
 
+cq_compile: $(C_SRC_Q)
+	@echo "======================================================="
+	@echo "INFO: Compiling C source file with $(CC)..."
+	@echo "======================================================="
+	$(CC) -o $(C_EXEC_Q) $(C_SRC_Q) $(CFLAGS) $(C_COMPILE_FLAGS)
+
 # 仿真运行规则
-run: c_compile compile
+runq: cq_compile compile
 	@echo "======================================================="
 	@echo "INFO: Running simulation with $(TOOL_NAME)..."
 	@echo "======================================================="
-	$(C_EXEC) $(MODEL_FILES) -z $(TOKENIZER_FILES) -n $(STEP) -i $(TOKEN)
+	$(C_EXEC_Q) $(MODEL_FILES) -z $(TOKENIZER_FILES) -n $(STEP) -i $(TOKEN)
+
+run: c_compile
+	@echo "======================================================="
+	@echo "INFO: Running simulation with $(TOOL_NAME)..."
+	@echo "======================================================="
+	$(C_EXEC) $(MODEL_Q_FILES) -z $(TOKENIZER_FILES) -n $(STEP) -i $(TOKEN)
 
 # 波形查看规则
 view:
