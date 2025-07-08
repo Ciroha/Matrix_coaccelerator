@@ -660,7 +660,7 @@ void encode(Tokenizer* t, char *text, int8_t bos, int8_t eos, int *tokens, int *
 
     // add_dummy_prefix is true by default
     // so prepend a dummy prefix token to the input string, but only if text != ""
-    // TODO: pretty sure this isn't correct in the general case but I don't have the
+    // pretty sure this isn't correct in the general case but I don't have the
     // energy to read more of the sentencepiece code to figure out what it's doing
     if (text[0] != '\0') {
         int dummy_prefix = str_lookup(" ", t->sorted_vocab, t->vocab_size);
