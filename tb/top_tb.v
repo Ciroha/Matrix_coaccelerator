@@ -18,7 +18,7 @@ module tb_top;
     wire processing_done;
 
     // Instantiate the Device Under Test (DUT)
-    top uut (
+    mac_top uut (
         .clk(clk),
         .srstn(srstn),
         .start_processing(start_processing),

@@ -3,7 +3,7 @@
 // Description:
 // Top-level module with corrected logic for writing results to an SRAM.
 //****************************************************************************
-module top #(
+module mac_top #(
     parameter ARRAY_SIZE      = 32,
     parameter SRAM_DATA_WIDTH = 1024,         // 32*32=1024
     parameter DATA_WIDTH      = 32,           // 32-bit floating point
@@ -18,7 +18,7 @@ module top #(
     input  clk,
     input  srstn,
     input  start_processing, // Top-level start signal
-    output processing_done
+    output processing_done  //TODO 适配控制器模块，缺失error模块
 );
 
     // Internal signals for controlling the PE core
@@ -127,7 +127,7 @@ module top #(
     // CONTROL LOGIC
     //========================================================================
     localparam ACCUM_DONE_CYCLE = K_ACCUM_DEPTH;
-    localparam WRITE_DONE_CYCLE = K_ACCUM_DEPTH + ARRAY_SIZE;
+    localparam WRITE_DONE_CYCLE = K_ACCUM_DEPTH + ARRAY_SIZE;   //TODO 需要修改，当前写入逻辑较慢
 
     assign processing_done = (cycle_num_reg == WRITE_DONE_CYCLE);
 
