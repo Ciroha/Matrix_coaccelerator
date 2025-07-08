@@ -20,6 +20,7 @@ module PE_core#(
 
 // Internal registers
 reg [DATA_WIDTH-1:0] weight_queue [0:ARRAY_SIZE-1];
+reg [DATA_WIDTH-1:0] vec_reg;
 reg [OUTCOME_WIDTH-1:0] acc_reg [0:ARRAY_SIZE-1];
 
 // Loop variable
@@ -31,11 +32,13 @@ always @(posedge clk) begin
         for (i = 0; i < ARRAY_SIZE; i = i + 1) begin
             weight_queue[i] <= 32'b0;
         end
+        vec_reg <= 32'b0;
     end else if (alu_start) begin
         for (i = 0; i < ARRAY_SIZE; i = i + 1) begin
             // Load a slice of the wide SRAM data into each weight queue element
             weight_queue[i] <= sram_rdata_w[i*DATA_WIDTH +: DATA_WIDTH];
         end
+        vec_reg <= sram_rdata_v;
     end
 end
 
@@ -50,7 +53,7 @@ generate
     for (gi = 0; gi < ARRAY_SIZE; gi = gi + 1) begin: MAC_PIPE
         fp_mac u_fp_mac (
             .a(weight_queue[gi]), // Multiplicand 1
-            .b(sram_rdata_v),     // Multiplicand 2
+            .b(vec_reg),     // Multiplicand 2
             .c(acc_reg[gi]),      // Value to add (from accumulator)
             .result(mac_result[gi]) // Output of the MAC operation
         );
@@ -64,7 +67,7 @@ always @(posedge clk) begin
             acc_reg[i] <= 32'b0;
         end
     // The accumulation now uses the result from the fp_mac unit
-    end else if(alu_start & cycle_num < K_ACCUM_DEPTH - 1) begin
+    end else if(alu_start & cycle_num <= K_ACCUM_DEPTH + 1) begin
         for(i=0; i<ARRAY_SIZE; i=i+1) begin
             acc_reg[i] <= mac_result[i];
         end

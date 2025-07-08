@@ -49,7 +49,7 @@ module mac_top #(
     sram #(
         .DATA_WIDTH(SRAM_DATA_WIDTH),
         .ADDR_WIDTH($clog2(SRAM_W_DEPTH)),
-        .INIT_FILE("D://IC//Matrix_coaccelerator//vsrc//weights.mem")
+        .INIT_FILE("E://IC//Matrix_coaccelerator//vsrc//weights.mem")
     ) sram_w_inst (
         .clk(clk),
         .csb(1'b0), // Chip select is always active for simplicity
@@ -64,7 +64,7 @@ module mac_top #(
     sram #(
         .DATA_WIDTH(DATA_WIDTH),
         .ADDR_WIDTH($clog2(SRAM_V_DEPTH)),
-        .INIT_FILE("D://IC//Matrix_coaccelerator//vsrc//vector.mem")
+        .INIT_FILE("E://IC//Matrix_coaccelerator//vsrc//vector.mem")
     ) sram_v_inst (
         .clk(clk),
         .csb(1'b0),
