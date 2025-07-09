@@ -12,7 +12,8 @@ module mac_top #(
     parameter SRAM_W_DEPTH    = K_ACCUM_DEPTH,// Depth of the weight SRAM
     parameter SRAM_V_DEPTH    = K_ACCUM_DEPTH, // Depth of the vector SRAM
     // Added a parameter for the depth of the outcome SRAM for clarity
-    parameter SRAM_O_DEPTH    = 32
+    parameter SRAM_O_DEPTH    = 32,
+    parameter MAC_LATENCY = 4
 )
 (
     input  clk,
@@ -36,7 +37,7 @@ module mac_top #(
 
     // --- Wires for Serializer Connections (now narrow) ---
     wire sram_we_wire;
-    wire [DATA_WIDTH-1:0] sram_wdata_wire;
+    wire [SRAM_DATA_WIDTH-1:0] sram_wdata_wire;
     wire [$clog2(ARRAY_SIZE)-1:0] sram_waddr_wire;
 
 
@@ -49,7 +50,7 @@ module mac_top #(
     sram #(
         .DATA_WIDTH(SRAM_DATA_WIDTH),
         .ADDR_WIDTH($clog2(SRAM_W_DEPTH)),
-        .INIT_FILE("E://IC//Matrix_coaccelerator//vsrc//weights.mem")
+        .INIT_FILE("D://IC//Matrix_coaccelerator//vsrc//weights.mem")
     ) sram_w_inst (
         .clk(clk),
         .csb(1'b0), // Chip select is always active for simplicity
@@ -64,7 +65,7 @@ module mac_top #(
     sram #(
         .DATA_WIDTH(DATA_WIDTH),
         .ADDR_WIDTH($clog2(SRAM_V_DEPTH)),
-        .INIT_FILE("E://IC//Matrix_coaccelerator//vsrc//vector.mem")
+        .INIT_FILE("D://IC//Matrix_coaccelerator//vsrc//vector.mem")
     ) sram_v_inst (
         .clk(clk),
         .csb(1'b0),
@@ -77,8 +78,8 @@ module mac_top #(
 
     // --- Final Outcome SRAM (with standard 32-bit width) ---
     sram #(
-        .DATA_WIDTH(DATA_WIDTH),
-        .ADDR_WIDTH($clog2(ARRAY_SIZE))
+        .DATA_WIDTH(SRAM_DATA_WIDTH),   //改为高位宽输出
+        .ADDR_WIDTH(1)
     ) sram_outcome_inst (
         .clk(clk), 
         .csb(~sram_we_wire), 
@@ -96,7 +97,8 @@ module mac_top #(
         .SRAM_DATA_WIDTH(SRAM_DATA_WIDTH),
         .DATA_WIDTH(DATA_WIDTH),
         .K_ACCUM_DEPTH(K_ACCUM_DEPTH),
-        .OUTCOME_WIDTH(OUTCOME_WIDTH)
+        .OUTCOME_WIDTH(OUTCOME_WIDTH),
+        .MAC_LATENCY(MAC_LATENCY)
     ) PE_core_inst (
         .clk(clk),
         .srstn(srstn),
@@ -111,7 +113,8 @@ module mac_top #(
     write_out #( 
         .ARRAY_SIZE(ARRAY_SIZE), 
         .DATA_WIDTH(DATA_WIDTH), 
-        .K_ACCUM_DEPTH(K_ACCUM_DEPTH)
+        .K_ACCUM_DEPTH(K_ACCUM_DEPTH),
+        .MAC_LATENCY(MAC_LATENCY)
     ) write_out_inst (
         .clk(clk),
         .srstn(srstn),
@@ -127,7 +130,7 @@ module mac_top #(
     // CONTROL LOGIC
     //========================================================================
     localparam ACCUM_DONE_CYCLE = K_ACCUM_DEPTH;
-    localparam WRITE_DONE_CYCLE = K_ACCUM_DEPTH + ARRAY_SIZE;   //TODO 需要修改，当前写入逻辑较慢
+    localparam WRITE_DONE_CYCLE = K_ACCUM_DEPTH + MAC_LATENCY + 2;   //TODO 需要修改，当前写入逻辑较慢
 
     assign processing_done = (cycle_num_reg == WRITE_DONE_CYCLE);
 
